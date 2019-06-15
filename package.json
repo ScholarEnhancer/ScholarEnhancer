@@ -1,0 +1,14 @@
+{
+  "name": "scholarenhancer",
+  "version": "1.0.0",
+  "description": "This extension enhances your Google Scholar experience.",
+  "main": "",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "",
+  "dependencies": {
+    "file-saver": "^2.0.2"
+  }
+}

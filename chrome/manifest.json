@@ -1,0 +1,14 @@
+{
+  "name": "ScholarEnhancer",
+  "version": "0.0.1",
+  "manifest_version": 2,
+  "description": "Enhances your experience in Google Scholar",
+  "permissions": [],
+  "content_scripts": [
+    {
+      "matches": ["*://scholar.google.com/*"],
+      "js": ["export.js", "libs/FileSaver.js"],
+      "css": ["style.css"]
+    }
+  ]
+}

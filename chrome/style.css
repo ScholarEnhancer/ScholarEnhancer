@@ -1,0 +1,12 @@
+#ScholarEnhancerRoot{
+    position: fixed;
+    top: 0;
+    left: 25%;
+    height: 2em;
+    width: 50%;
+    background-color: aliceblue;
+}
+
+#ScholarEnhancerRoot span{
+    padding: 0 1em;
+}

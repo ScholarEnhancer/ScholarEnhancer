@@ -5,6 +5,11 @@
     height: 2em;
     width: 50%;
     background-color: aliceblue;
+    opacity: 0.75;
+}
+
+#ScholarEnhancerRoot:hover{
+    opacity: 1;
 }
 
 #ScholarEnhancerRoot span{

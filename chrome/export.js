@@ -145,7 +145,7 @@ class ScholarEnhancer {
 		return new Promise((resolve, reject) => {
 			if (this.detailPageWaitInterval) clearInterval(this.detailPageWaitInterval);
 			this.detailPageWaitInterval = setInterval( () => {
-				let isOpen = (document.getElementsByClassName('gsc_vcd_title_link').length > 0) && document.querySelectorAll('.gs_md_wnw.gs_md_wmw.gs_vis').length > 0;
+				let isOpen = (document.querySelectorAll('#gsc_vcd_title').length > 0) && document.querySelectorAll('.gs_md_wnw.gs_md_wmw.gs_vis').length > 0;
 				if (isOpen === forOpen) {
 					clearInterval(this.detailPageWaitInterval);
 					return resolve(isOpen);
@@ -161,13 +161,14 @@ class ScholarEnhancer {
 		console.log('Clicked on "' + e.children[0].children[0].innerText.slice(0, 20) + '..."');
 		await this.waitForDetailsPage(true); // Wait for openning
 		const data = {
-			"title": document.getElementsByClassName('gsc_vcd_title_link')[0].innerText,
-			"url": document.getElementsByClassName('gsc_vcd_title_link')[0].href,
+			"title": document.querySelectorAll('#gsc_vcd_title').innerText,
 			"authors": document.getElementsByClassName('gs_scl')[0].children[1].innerText,
 			"date": document.getElementsByClassName('gs_scl')[1].children[1].innerText,
 			"type": document.getElementsByClassName('gs_scl')[2].children[1].innerText,
 			"publication": document.getElementsByClassName('gs_scl')[2].children[1].innerText,
 		};
+		const urlElem = document.getElementsByClassName('gsc_vcd_title_link');
+		if (urlElem.length > 0) { data["url"] = urlElem[0].href; }
 		Array.from(document.getElementsByClassName('gs_scl')).splice(2).forEach( rowElem => {
 			const name = rowElem.children[0].innerText.toLowerCase();
 			if ((name === 'volume') || (name === 'issue') || (name === 'pages') || (name === 'publisher') || (name === 'description')){

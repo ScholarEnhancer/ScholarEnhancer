@@ -19,29 +19,30 @@ function exportObjectAsJSON( object, fileName = null ) {
 }
 
 class ScholarEnhancer {
-	maxPapers = null; 
-	detailsWaitInterval = 50; // In ms
-	allPapers = [];
-	
-	// State variable
-	scanning = false;
-	matchCount = 0;
-
-	// Ui components
-	rootElem = null;
-	showAllBtn = null;
-	scanBtn = null;
-	exportBtn = null;
-	msgElem = null;
-	
-	statsElem = null;
-	
-	// Timers
-	msgTimeout = null;
-	showMoreInterval = null;
-	detailPageWaitInterval = null;
-
 	constructor() {
+		this.maxPapers = null; 
+		this.detailsWaitInterval = 50; // In ms
+		this.allPapers = [];
+		
+		// State variable
+		this.scanning = false;
+		this.matchCount = 0;
+
+		// Ui components
+		this.rootElem = null;
+		this.showAllBtn = null;
+		this.scanBtn = null;
+		this.exportBtn = null;
+		this.msgElem = null;
+		
+		this.statsElem = null;
+		
+		// Timers
+		this.msgTimeout = null;
+		this.showMoreInterval = null;
+		this.detailPageWaitInterval = null;
+
+
 		this.createUI();
 	}
 

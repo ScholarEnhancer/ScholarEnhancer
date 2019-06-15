@@ -4,14 +4,29 @@
     left: 25%;
     height: 2em;
     width: 50%;
-    background-color: aliceblue;
+    background-color: #f5f5f5;
     opacity: 0.75;
+    overflow: hidden;
 }
 
 #ScholarEnhancerRoot:hover{
     opacity: 1;
 }
 
+#ScholarEnhancerRoot.closed{
+    display: none;
+}
+
 #ScholarEnhancerRoot span{
     padding: 0 1em;
+}
+
+#ScholarEnhancerRoot button{
+    height: 2em;
+}
+
+#ScholarEnhancerRoot button.closeBtn{
+    min-width: 2em;
+    width: 2em;
+    border: 0;
 }

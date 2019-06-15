@@ -52,10 +52,18 @@ class ScholarEnhancer {
 
 	createUI() {
 		if (!this.getUIRoot()) {
+			if (window.location.href.indexOf('scholar.google.com/citations') === -1) { return; }
+
 			// Create UI
 			this.rootElem = document.createElement('div');
 			this.rootElem.id = 'ScholarEnhancerRoot';
 			document.getElementsByTagName('body')[0].appendChild(this.rootElem);
+			
+			this.closeBtn = document.createElement('button');
+			this.closeBtn.onclick = (ev) => { this.rootElem.classList.add('closed') };
+			this.closeBtn.innerText = 'x';
+			this.closeBtn.className = 'closeBtn';
+			this.rootElem.appendChild(this.closeBtn);
 			
 			this.showAllBtn = document.createElement('button');
 			this.showAllBtn.onclick = (ev) => { this.showAllBtnCallback(ev) };
@@ -72,7 +80,6 @@ class ScholarEnhancer {
 			this.exportBtn.innerText = 'Export';
 			this.rootElem.appendChild(this.exportBtn);
 			
-			
 			this.statsElem = document.createElement('span');
 			this.rootElem.appendChild(this.statsElem);
 
@@ -80,6 +87,7 @@ class ScholarEnhancer {
 			this.rootElem.appendChild(this.msgElem);
 
 			this.setMessage('Scholar Enhancer is ready!', 10000);
+			this.updateStats();
 		}
 	}
 
@@ -98,11 +106,12 @@ class ScholarEnhancer {
 	}
 
 	updateStats(){
+		this.getPaperElems();
 		let statText;
 		if (this.scanning || this.allPapers.length){
 			statText = this.allPapers.length + ' of ' + this.matchCount + ' extracted';
 		} else {
-			statText = this.matchCount + ' papers detected on the page';
+			statText = this.matchCount + ' papers';
 		}
 		this.statsElem.innerText = statText;
 	}
@@ -145,7 +154,7 @@ class ScholarEnhancer {
 		return new Promise((resolve, reject) => {
 			if (this.detailPageWaitInterval) clearInterval(this.detailPageWaitInterval);
 			this.detailPageWaitInterval = setInterval( () => {
-				let isOpen = (document.querySelectorAll('#gsc_vcd_title').length > 0) && document.querySelectorAll('.gs_md_wnw.gs_md_wmw.gs_vis').length > 0;
+				let isOpen = (this.getTitleElemInDetailsPage()) && document.querySelectorAll('.gs_md_wnw.gs_md_wmw.gs_vis').length > 0;
 				if (isOpen === forOpen) {
 					clearInterval(this.detailPageWaitInterval);
 					return resolve(isOpen);
@@ -154,17 +163,30 @@ class ScholarEnhancer {
 		});
 	}
 
+	getTitleElemInDetailsPage(e){
+		if (document.querySelector('.gsc_vcd_title_link')) {
+			return document.querySelector('.gsc_vcd_title_link'); // Has link
+		} else {
+			return document.querySelector('#gsc_vcd_title'); // No link
+		}
+	}
+
+	getTitleElemInListing(e){
+		return e.children[e.children.length-3].children[0];
+	}
+
 	async scrapPaperInfo(e){
-		const year = e.children[2].children[0].innerText;
+		// const year = e.children[e.children.length-1].children[0].innerText;
 		// Click on link
-		e.children[0].children[0].click();
-		console.log('Clicked on "' + e.children[0].children[0].innerText.slice(0, 20) + '..."');
-		await this.waitForDetailsPage(true); // Wait for openning
+		let titleElem = this.getTitleElemInListing(e);
+		titleElem.click();
+		console.log('Clicked on "' + titleElem.innerText.slice(0, 20) + '..."');
+		await this.waitForDetailsPage(true); // Wait for opening
 		const data = {
-			"title": document.querySelectorAll('#gsc_vcd_title').innerText,
+			"title": this.getTitleElemInDetailsPage().innerText,
 			"authors": document.getElementsByClassName('gs_scl')[0].children[1].innerText,
 			"date": document.getElementsByClassName('gs_scl')[1].children[1].innerText,
-			"type": document.getElementsByClassName('gs_scl')[2].children[1].innerText,
+			"type": document.getElementsByClassName('gs_scl')[2].children[0].innerText,
 			"publication": document.getElementsByClassName('gs_scl')[2].children[1].innerText,
 		};
 		const urlElem = document.getElementsByClassName('gsc_vcd_title_link');
@@ -172,7 +194,7 @@ class ScholarEnhancer {
 		Array.from(document.getElementsByClassName('gs_scl')).splice(2).forEach( rowElem => {
 			const name = rowElem.children[0].innerText.toLowerCase();
 			if ((name === 'volume') || (name === 'issue') || (name === 'pages') || (name === 'publisher') || (name === 'description')){
-				const value = rowElem.children[0].innerText;
+				const value = rowElem.children[1].innerText;
 				if (name === 'description'){
 					data['abstract'] = value;
 				} else {
@@ -180,7 +202,7 @@ class ScholarEnhancer {
 				}
 			} else if (name === 'total citations') {
 				const value = rowElem.children[1].children[0].innerText;
-				data['citations'] = value;
+				data['citations'] = value.replace('Cited by', '').trim();
 			}
 		});
 		const closeBtn = document.getElementById('gs_md_cita-d-x');
@@ -189,13 +211,19 @@ class ScholarEnhancer {
 		return data;
 	}
 
+	getPaperElems() {
+		let elems = Array.from(document.getElementsByClassName('gsc_a_tr'));
+		this.matchCount = elems.length;
+		return elems;
+	}
+
 	scrapPapers(maxCnt) {
 		return new Promise((resolve, reject) => {
-			let elems = Array.from(document.getElementsByClassName('gsc_a_tr'));
-			this.matchCount = elems.length;
+			let elems = this.getPaperElems();
 			if (maxCnt) {
 				elems = elems.slice(0, maxCnt);
 			}
+			this.clearPapers();
 			let result = Promise.resolve();
 			elems.forEach( (e, i) => {
 				result = result.then(async () => {
@@ -214,6 +242,11 @@ class ScholarEnhancer {
 		this.allPapers.push(paperInfo);
 		let msgText = 'Fetched ' + paperInfo['authors'].split(',').splice(0, 1) + ', ... ' + paperInfo['date'];
 		this.setMessage(msgText, 1000);
+		this.updateStats();
+	}
+
+	clearPapers( ) {
+		this.allPapers = [];
 		this.updateStats();
 	}
 

@@ -124,6 +124,8 @@ class ScholarEnhancer {
 			if (showMoreBtn && !showMoreBtn.disabled) {
 				showMoreBtn.click();
 			}
+			this.updateStats();
+			if (showMoreBtn && showMoreBtn.disabled) { clearInterval(this.detailPageWaitInterval); }
 		}, 500);
 	}
 

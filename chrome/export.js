@@ -52,7 +52,8 @@ class ScholarEnhancer {
 
 	createUI() {
 		if (!this.getUIRoot()) {
-			if (window.location.href.indexOf('scholar.google.com/citations') === -1) { return; }
+			const winLoc = window.location.href;
+			if ((winLoc.indexOf('scholar.google.com/citations') === -1) || (winLoc.indexOf('user=') == -1)) { return; }
 
 			// Create UI
 			this.rootElem = document.createElement('div');
@@ -63,23 +64,51 @@ class ScholarEnhancer {
 			this.closeBtn.onclick = (ev) => { this.rootElem.classList.add('closed') };
 			this.closeBtn.innerText = 'x';
 			this.closeBtn.className = 'closeBtn';
-			this.rootElem.appendChild(this.closeBtn);
+			let containerDiv = document.createElement('div');
+			containerDiv.appendChild(this.closeBtn);
+			this.rootElem.appendChild(containerDiv);
 			
 			this.showAllBtn = document.createElement('button');
 			this.showAllBtn.onclick = (ev) => { this.showAllBtnCallback(ev) };
 			this.showAllBtn.innerText = 'Show All';
-			this.rootElem.appendChild(this.showAllBtn);
+			containerDiv = document.createElement('div');
+			containerDiv.appendChild(this.showAllBtn);
+			this.rootElem.appendChild(containerDiv);
 			
 			this.scanBtn = document.createElement('button');
 			this.scanBtn.onclick = (ev) => { this.scanBtnCallback(ev) };
 			this.scanBtn.innerText = 'Scan';
-			this.rootElem.appendChild(this.scanBtn);
+			containerDiv = document.createElement('div');
+			containerDiv.appendChild(this.scanBtn);
+			this.rootElem.appendChild(containerDiv);
 			
 			this.exportBtn = document.createElement('button');
 			this.exportBtn.onclick = (ev) => { this.exportBtnCallback(ev) };
 			this.exportBtn.innerText = 'Export';
-			this.rootElem.appendChild(this.exportBtn);
+			this.exportBtnDiv = document.createElement('div');
+			this.exportBtnDiv.appendChild(this.exportBtn)
+			this.rootElem.appendChild(this.exportBtnDiv);
 			
+			this.exportMenu = document.createElement('div');
+			this.exportMenu.classList.add('btnMenu');
+			this.exportMenu.classList.add('closed');
+			this.exportBtnDiv.appendChild(this.exportMenu);
+			
+			this.exportMenuItem1 = document.createElement('a');
+			this.exportMenuItem1.onclick = (ev) => { this.exportItemCallback(ev, 'bibtex') };
+			this.exportMenuItem1.innerText = 'BibTeX';
+			this.exportMenu.appendChild(this.exportMenuItem1);
+
+			this.exportMenuItem2 = document.createElement('a');
+			this.exportMenuItem2.onclick = (ev) => { this.exportItemCallback(ev, 'json') };
+			this.exportMenuItem2.innerText = 'JSON';
+			this.exportMenu.appendChild(this.exportMenuItem2);
+
+			this.exportMenuItem3 = document.createElement('a');
+			this.exportMenuItem3.onclick = (ev) => { this.exportItemCallback(ev, 'coauthors') };
+			this.exportMenuItem3.innerText = 'Co-authors';
+			this.exportMenu.appendChild(this.exportMenuItem3);
+
 			this.statsElem = document.createElement('span');
 			this.rootElem.appendChild(this.statsElem);
 
@@ -147,9 +176,35 @@ class ScholarEnhancer {
 
 	async exportBtnCallback( ev ){
 		ev.stopPropagation(); // Important
+		if (this.exportMenu.className.indexOf('closed') > -1){
+			this.exportMenu.classList.remove('closed');
+		} else {
+			this.exportMenu.classList.add('closed');
+		}
+	}
+
+	async exportItemCallback( ev, type ){
+		ev.stopPropagation(); // Important
 		const nameElem = document.getElementById('gsc_prf_in');
-		let saveFileName = (nameElem)?(nameElem.innerText+'.json'):'export.json';
-		exportObjectAsJSON(this.allPapers, saveFileName);
+		
+		if (type === 'bibtex') {
+			let saveFileName = (nameElem)?(nameElem.innerText+'.bib'):'export.bib';
+			saveTextToFile(this.getBibtex(), saveFileName);
+		} else if (type === 'json') {
+			let saveFileName = (nameElem)?(nameElem.innerText+'.json'):'export.json';
+			exportObjectAsJSON(this.allPapers, saveFileName);
+		} else if (type === 'coauthors') {
+			let allAuthors = '';
+			this.allPapers.forEach( a => allAuthors += a["authors"] + '\n' );
+			const names = allAuthors.split(/\n|\,/).map(s => s.trim(s)).filter(s => s.length);
+			const namesUnique = [...new Set(names)]; 
+			const fileContent = namesUnique.join('\n');
+
+			let saveFileName = (nameElem)?(nameElem.innerText):'';
+			saveFileName += '_coauthors.txt';
+			saveTextToFile(fileContent, saveFileName);
+		}
+		this.exportMenu.classList.add('closed');
 	}
 
 	async waitForDetailsPage(forOpen){
@@ -193,17 +248,18 @@ class ScholarEnhancer {
 		};
 		const urlElem = document.getElementsByClassName('gsc_vcd_title_link');
 		if (urlElem.length > 0) { data["url"] = urlElem[0].href; }
-		Array.from(document.getElementsByClassName('gs_scl')).splice(2).forEach( rowElem => {
+		const detailRows = document.querySelectorAll('#gsc_vcd_table .gs_scl');
+		Array.from(detailRows).forEach( rowElem => {
 			const name = rowElem.children[0].innerText.toLowerCase();
 			if ((name === 'volume') || (name === 'issue') || (name === 'pages') || (name === 'publisher') || (name === 'description')){
-				const value = rowElem.children[1].innerText;
+				const value = rowElem.children[1].innerText.trim();
 				if (name === 'description'){
 					data['abstract'] = value;
 				} else {
 					data[name] = value;
 				}
 			} else if (name === 'total citations') {
-				const value = rowElem.children[1].children[0].innerText;
+				const value = rowElem.children[1].children[0].innerText.trim();
 				data['citations'] = value.replace('Cited by', '').trim();
 			}
 		});
@@ -254,7 +310,7 @@ class ScholarEnhancer {
 
 	getCoauthors(){
 		let allAuthors = '';
-		this.allPapers.forEach( a => allAuthors += a["authors"] + '\n' )
+		this.allPapers.forEach( a => allAuthors += a["authors"] + '\n' );
 		let names = allAuthors.split(/\n|\,/).map(s => s.trim(s)).filter(s => s.length);
 		let list = '';
 		for (let i = 0; i<names.length; i++) {
@@ -267,6 +323,86 @@ class ScholarEnhancer {
 			}
 			list += o + '\n';
 		}
+	}
+
+	getAuthorsAsLastFirstName(authors) {
+		let names = authors.split(/\n|\,/).map(s => s.trim(s)).filter(s => s.length);
+		let list = [];
+		for (const n of names) {
+			let o = n;
+			const w = n.split(' ');
+			if (w.length >= 2) {
+				const lastName = w.slice(-1);
+				const OtherNames = w.slice(0, -1);
+				o = lastName + ', ' + OtherNames.join(' ');
+			}
+			list.push(o);
+		}
+		return list;
+	}
+
+	getBibtex() {
+		let bib = '';
+		let ids = new Set();
+		for (const item of this.allPapers) {
+			let itemBib = '';
+
+			let idBase = '';
+			if (item['authors']) {
+				const firstAuthLN = item['authors'].split(',').slice(0,1)[0].trim().split(' ').slice(-1)[0];
+				idBase += firstAuthLN;
+			}
+			if (item['date']) {
+				const year = new Date(item['date']).getFullYear();
+				idBase += year;
+			}
+			if (item['title']) {
+				const firstTitleWord = item['title'].split(' ').slice(0, 1);
+				idBase += firstTitleWord;
+			}
+			idBase = idBase.toLowerCase();
+			let itemId = idBase;
+			let cnt = 0;
+			while (itemId in ids) { cnt++; itemId = idBase + cnt };
+			
+			let entryName;
+			let publicationName = '';
+			let publisherName = '';
+			switch (item["type"].toLowerCase()){
+				case 'journal': 
+					entryName = 'article'; 
+					publicationName = 'journal'; 
+					publisherName = 'publisher'; 
+					break;
+				case 'conference': 
+					entryName = 'inproceedings'; 
+					publicationName = 'booktitle'; 
+					publisherName = 'organization'; 
+					break;
+				default: 
+					entryName = item["type"].toLowerCase();
+					publicationName = 'howpublished'; 
+					publisherName = 'publisher'; 
+			}
+			
+			itemBib = '@' + entryName + '{' + itemId;
+			// Add info
+			itemBib += ',\n\t title = {' + item['title'] + '}';
+			itemBib += ',\n\t author = {' + this.getAuthorsAsLastFirstName(item['authors']).join(' and ') + '}';
+			itemBib += ',\n\t ' + publicationName + ' = {' + item['publication'] + '}';
+			if (item['volume']) { itemBib += ',\n\t volume = {' + item['volume'] + '}'; }
+			if (item['issue']) { itemBib += ',\n\t number = {' + item['issue'] + '}'; }
+			if (item['pages']) { itemBib += ',\n\t pages = {' + item['pages'] + '}'; }
+			if (item['publisher']) { itemBib += ',\n\t ' + publisherName + ' = {' + item['publisher'] + '}'; }
+			if (item['date']) { itemBib += ',\n\t year = {' + (new Date(item['date']).getFullYear()) + '}'; }
+			if (item['url']) { itemBib += ',\n\t url = {' + item['url'] + '}'; }
+			itemBib += '\n}\n';
+
+			ids.add(itemId);
+
+			bib += itemBib + '\n';
+		}
+		return bib;
 	}
 }
 

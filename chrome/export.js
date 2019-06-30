@@ -22,11 +22,13 @@ class ScholarEnhancer {
 	constructor() {
 		this.maxPapers = null; 
 		this.detailsWaitInterval = 50; // In ms
+		this.getDetailsFor = 'missing'; // Can be 'missing, 'all', 'none'
 		this.allPapers = [];
 		
 		// State variable
 		this.scanning = false;
 		this.matchCount = 0;
+		this.paperElems = [];
 
 		// Ui components
 		this.rootElem = null;
@@ -75,13 +77,36 @@ class ScholarEnhancer {
 			containerDiv.appendChild(this.showAllBtn);
 			this.rootElem.appendChild(containerDiv);
 			
+			document.getElementsByTagName('body')[0].onclick = (ev) => { this.windowClickCallback(ev) };
+
+			// Scan menu
 			this.scanBtn = document.createElement('button');
 			this.scanBtn.onclick = (ev) => { this.scanBtnCallback(ev) };
-			this.scanBtn.innerText = 'Scan';
-			containerDiv = document.createElement('div');
-			containerDiv.appendChild(this.scanBtn);
-			this.rootElem.appendChild(containerDiv);
+			this.scanBtn.innerText = 'Scan details';
+			this.scanBtnDiv = document.createElement('div');
+			this.scanBtnDiv.appendChild(this.scanBtn)
+			this.rootElem.appendChild(this.scanBtnDiv);
+
+			this.scanMenu = document.createElement('div');
+			this.scanMenu.classList.add('btnMenu','closed');
+			this.scanBtnDiv.appendChild(this.scanMenu);
+
+			this.scanMenuItem1 = document.createElement('a');
+			this.scanMenuItem1.onclick = (ev) => { this.scanItemCallback(ev, 'missing') };
+			this.scanMenuItem1.innerText = 'Missing';
+			this.scanMenu.appendChild(this.scanMenuItem1);
 			
+			this.scanMenuItem2 = document.createElement('a');
+			this.scanMenuItem2.onclick = (ev) => { this.scanItemCallback(ev, 'all') };
+			this.scanMenuItem2.innerText = 'All';
+			this.scanMenu.appendChild(this.scanMenuItem2);
+			
+			this.scanMenuItem3 = document.createElement('a');
+			this.scanMenuItem3.onclick = (ev) => { this.scanItemCallback(ev, 'none') };
+			this.scanMenuItem3.innerText = 'None';
+			this.scanMenu.appendChild(this.scanMenuItem3);
+			
+			// Export menu
 			this.exportBtn = document.createElement('button');
 			this.exportBtn.onclick = (ev) => { this.exportBtnCallback(ev) };
 			this.exportBtn.innerText = 'Export';
@@ -90,8 +115,7 @@ class ScholarEnhancer {
 			this.rootElem.appendChild(this.exportBtnDiv);
 			
 			this.exportMenu = document.createElement('div');
-			this.exportMenu.classList.add('btnMenu');
-			this.exportMenu.classList.add('closed');
+			this.exportMenu.classList.add('btnMenu','closed');
 			this.exportBtnDiv.appendChild(this.exportMenu);
 			
 			this.exportMenuItem1 = document.createElement('a');
@@ -158,26 +182,44 @@ class ScholarEnhancer {
 		}, 500);
 	}
 
+	async windowClickCallback( ev ){
+		// Do NOT stop propagation
+		this.scanMenu.classList.add('closed');
+		this.exportMenu.classList.add('closed');
+	}
+
 	async scanBtnCallback( ev ){
 		ev.stopPropagation(); // Important
+		if (this.scanMenu.className.indexOf('closed') > -1){
+			this.scanMenu.classList.remove('closed');
+			this.exportMenu.classList.add('closed');
+		} else {
+			this.scanMenu.classList.add('closed');
+		}
+	}
+
+	async scanItemCallback( ev, type ){
+		ev.stopPropagation(); // Important
+		this.getDetailsFor = type; 
 		if (!this.scanning) {
 			this.scanning = true;
 			this.scanBtn.innerText = 'Stop';
 			// scrapPapersO(this.maxPapers).then( (p) => { this.allPapers = p; } );
 			this.scrapPapers(this.maxPapers).then( () => {
 				this.scanning = false;
-				this.scanBtn.innerText = 'Scan';
+				this.scanBtn.innerText = 'Scan details';
 			});
 		} else {
 			this.scanning = false;
-			this.scanBtn.innerText = 'Scan';
+			this.scanBtn.innerText = 'Scan details';
 		}
 	}
-
+	
 	async exportBtnCallback( ev ){
 		ev.stopPropagation(); // Important
 		if (this.exportMenu.className.indexOf('closed') > -1){
 			this.exportMenu.classList.remove('closed');
+			this.scanMenu.classList.add('closed');
 		} else {
 			this.exportMenu.classList.add('closed');
 		}
@@ -185,6 +227,17 @@ class ScholarEnhancer {
 
 	async exportItemCallback( ev, type ){
 		ev.stopPropagation(); // Important
+
+		if (this.allPapers.length == 0 && this.paperElems.length > 0) { // Nothing has been scanned
+			console.log('Nothing has been scanned, scanning just from the list.');
+			this.scanning = true;
+			const getDetailsForBU = this.getDetailsFor;
+			this.getDetailsFor = 'none';
+			await this.scrapPapers(this.maxPapers);
+			this.scanning = false;
+			this.getDetailsFor = getDetailsForBU;
+		}
+		
 		const nameElem = document.getElementById('gsc_prf_in');
 		
 		if (type === 'bibtex') {
@@ -231,21 +284,64 @@ class ScholarEnhancer {
 	getTitleElemInListing(e){
 		return e.children[e.children.length-3].children[0];
 	}
+	
+	extractInfoFromListing(e){
+		const titleStr = this.getTitleElemInListing(e).innerText;
+		const authorsStr = e.children[e.children.length-3].children[1].innerText;
+		const publicationStr = e.children[e.children.length-3].children[2].innerText;
+		const missingInfo = (
+			titleStr.indexOf('...') > -1 || authorsStr.indexOf('...') > -1 || publicationStr.indexOf('...') > -1 || 
+			titleStr.indexOf('…') > -1 || authorsStr.indexOf('…') > -1 || publicationStr.indexOf('…') > -1
+		);
+		// Parse publication string
+		const pubType = (publicationStr.indexOf('conference') === -1)?'journal':'conference'; // Basic heuristic
+		let pubName = publicationStr;
+		const etcData = {}
+		if (publicationStr.indexOf('...') === -1 && publicationStr.indexOf('…') === -1) {
+			let parts = publicationStr.split(' ');
+			let hasDigit = 0;
+			while (/\d/.test(parts[parts.length-1-hasDigit])) { hasDigit++; }
+			for (let i=0; i<hasDigit; i++){
+				const part = parts[parts.length-1-i];
+				if (/\d-\d/.test(part)){
+					etcData['pages'] = part;
+				} else if (/\((\d*)\)\,*/.test(part)) {
+					const o = /\(*(\d*)\)*\,*/.exec(part);
+					etcData['issue'] = o[o.length-1];
+				} else if ((i === 0 && hasDigit === 3) || (i === 0 && hasDigit === 2)){
+					etcData['pages'] = part;
+				} else {
+					const o = /\(*(\d*)\)*\,*/.exec(part);
+					etcData['volume'] = o[o.length-1];
+				}
+			}
+			pubName = parts.slice(0, parts.length-hasDigit).join(' ');
+		}
+		const year = e.children[e.children.length-1].children[0].innerText;
+		const data = {...
+			{
+			"title": titleStr,
+			"authors": authorsStr,
+			"year": year,
+			"type": pubType,
+			"publication": pubName,
+			"missingInfo": missingInfo
+		}, ...etcData};
+		return data;
+	}
 
-	async scrapPaperInfo(e){
-		// const year = e.children[e.children.length-1].children[0].innerText;
-		// Click on link
-		let titleElem = this.getTitleElemInListing(e);
-		titleElem.click();
-		console.log('Clicked on "' + titleElem.innerText.slice(0, 20) + '..."');
-		await this.waitForDetailsPage(true); // Wait for opening
+	extractInfoFromDetailsPage(){
 		const data = {
 			"title": this.getTitleElemInDetailsPage().innerText,
 			"authors": document.getElementsByClassName('gs_scl')[0].children[1].innerText,
-			"date": document.getElementsByClassName('gs_scl')[1].children[1].innerText,
-			"type": document.getElementsByClassName('gs_scl')[2].children[0].innerText,
-			"publication": document.getElementsByClassName('gs_scl')[2].children[1].innerText,
+			"date": document.getElementsByClassName('gs_scl')[1].children[1].innerText
 		};
+		let ThirdRowName  = document.getElementsByClassName('gs_scl')[2].children[0].innerText;
+		if (ThirdRowName.toLowerCase().indexOf('journal')||ThirdRowName.toLowerCase().indexOf('conference')){
+			let ThirdRowValue = document.getElementsByClassName('gs_scl')[2].children[1].innerText;
+			data['type'] = ThirdRowName;
+			data['publication'] = ThirdRowValue;
+		}
 		const urlElem = document.getElementsByClassName('gsc_vcd_title_link');
 		if (urlElem.length > 0) { data["url"] = urlElem[0].href; }
 		const detailRows = document.querySelectorAll('#gsc_vcd_table .gs_scl');
@@ -263,21 +359,38 @@ class ScholarEnhancer {
 				data['citations'] = value.replace('Cited by', '').trim();
 			}
 		});
-		const closeBtn = document.getElementById('gs_md_cita-d-x');
-		closeBtn.click();
-		await this.waitForDetailsPage(false); // Wait for closure
+		return data;
+	}
+
+	async scrapPaperInfo(e){
+		// const year = e.children[e.children.length-1].children[0].innerText;
+		// Click on link
+		let titleElem = this.getTitleElemInListing(e);
+		let data = this.extractInfoFromListing(e);
+		// Extract info from the highlights
+		const needToGetDetails = (this.getDetailsFor === 'all') || (this.getDetailsFor === 'missing' && data['missingInfo']);
+		// If needed, click to get more details
+		if (needToGetDetails) {
+			titleElem.click();
+			console.log('Clicked on "' + titleElem.innerText.slice(0, 20) + '..."');
+			await this.waitForDetailsPage(true); // Wait for opening
+			data = this.extractInfoFromDetailsPage();
+			const closeBtn = document.getElementById('gs_md_cita-d-x');
+			closeBtn.click();
+			await this.waitForDetailsPage(false); // Wait for closure
+		}
 		return data;
 	}
 
 	getPaperElems() {
-		let elems = Array.from(document.getElementsByClassName('gsc_a_tr'));
-		this.matchCount = elems.length;
-		return elems;
+		this.paperElems = document.getElementsByClassName('gsc_a_tr');
+		this.matchCount = this.paperElems.length;
 	}
 
 	scrapPapers(maxCnt) {
 		return new Promise((resolve, reject) => {
-			let elems = this.getPaperElems();
+			this.getPaperElems();
+			let elems = Array.from( this.paperElems );
 			if (maxCnt) {
 				elems = elems.slice(0, maxCnt);
 			}
@@ -352,8 +465,8 @@ class ScholarEnhancer {
 				const firstAuthLN = item['authors'].split(',').slice(0,1)[0].trim().split(' ').slice(-1)[0];
 				idBase += firstAuthLN;
 			}
-			if (item['date']) {
-				const year = new Date(item['date']).getFullYear();
+			if (item['date'] || item['year']) {
+				const year = (item['date'])?( new Date(item['date']).getFullYear() ):item['year'];
 				idBase += year;
 			}
 			if (item['title']) {
@@ -363,7 +476,7 @@ class ScholarEnhancer {
 			idBase = idBase.toLowerCase();
 			let itemId = idBase;
 			let cnt = 0;
-			while (itemId in ids) { cnt++; itemId = idBase + cnt };
+			while (ids.has(itemId)) { cnt++; itemId = idBase + cnt; };
 			
 			let entryName;
 			let publicationName = '';
@@ -380,7 +493,7 @@ class ScholarEnhancer {
 					publisherName = 'organization'; 
 					break;
 				default: 
-					entryName = item["type"].toLowerCase();
+					entryName = 'misc';
 					publicationName = 'howpublished'; 
 					publisherName = 'publisher'; 
 			}
@@ -394,7 +507,9 @@ class ScholarEnhancer {
 			if (item['issue']) { itemBib += ',\n\t number = {' + item['issue'] + '}'; }
 			if (item['pages']) { itemBib += ',\n\t pages = {' + item['pages'] + '}'; }
 			if (item['publisher']) { itemBib += ',\n\t ' + publisherName + ' = {' + item['publisher'] + '}'; }
-			if (item['date']) { itemBib += ',\n\t year = {' + (new Date(item['date']).getFullYear()) + '}'; }
+			if (item['date'] || item['year']) { itemBib += ',\n\t year = {' + 
+				( (item['date'])? (new Date(item['date']).getFullYear()) : item['year'] ) 
+			+ '}'; }
 			if (item['url']) { itemBib += ',\n\t url = {' + item['url'] + '}'; }
 			itemBib += '\n}\n';
 

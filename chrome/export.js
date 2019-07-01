@@ -174,11 +174,14 @@ class ScholarEnhancer {
 		if (this.showMoreInterval) clearInterval(this.showMoreInterval);
 		this.showMoreInterval = setInterval( () => {
 			const showMoreBtn = document.getElementById('gsc_bpf_more');
-			if (showMoreBtn && !showMoreBtn.disabled) {
-				showMoreBtn.click();
+			if (showMoreBtn){
+				if (!showMoreBtn.disabled){
+					showMoreBtn.click();
+				} else {
+					clearInterval(this.showMoreInterval);
+				}
 			}
 			this.updateStats();
-			if (showMoreBtn && showMoreBtn.disabled) { clearInterval(this.showMoreInterval); }
 		}, 500);
 	}
 

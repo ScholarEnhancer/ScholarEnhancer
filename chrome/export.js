@@ -139,7 +139,7 @@ class ScholarEnhancer {
 			this.msgElem = document.createElement('span');
 			this.rootElem.appendChild(this.msgElem);
 
-			this.setMessage('Scholar Enhancer is ready!', 10000);
+			this.setMessage('Scholar Enhancer!', 10000);
 			this.updateStats();
 		}
 	}
@@ -171,14 +171,14 @@ class ScholarEnhancer {
 
 	async showAllBtnCallback( ev ){
 		ev.stopPropagation(); // Important
-		if (this.showMoreInterval) clearInterval(this.detailPageWaitInterval);
+		if (this.showMoreInterval) clearInterval(this.showMoreInterval);
 		this.showMoreInterval = setInterval( () => {
 			const showMoreBtn = document.getElementById('gsc_bpf_more');
 			if (showMoreBtn && !showMoreBtn.disabled) {
 				showMoreBtn.click();
 			}
 			this.updateStats();
-			if (showMoreBtn && showMoreBtn.disabled) { clearInterval(this.detailPageWaitInterval); }
+			if (showMoreBtn && showMoreBtn.disabled) { clearInterval(this.showMoreInterval); }
 		}, 500);
 	}
 
@@ -202,6 +202,7 @@ class ScholarEnhancer {
 		ev.stopPropagation(); // Important
 		this.getDetailsFor = type; 
 		if (!this.scanning) {
+			if (this.showMoreInterval) clearInterval(this.showMoreInterval);
 			this.scanning = true;
 			this.scanBtn.innerText = 'Stop';
 			// scrapPapersO(this.maxPapers).then( (p) => { this.allPapers = p; } );
@@ -411,7 +412,8 @@ class ScholarEnhancer {
 
 	addPaper( paperInfo ){
 		this.allPapers.push(paperInfo);
-		let msgText = 'Fetched ' + paperInfo['authors'].split(',').splice(0, 1) + ', ... ' + paperInfo['date'];
+		const date = (paperInfo['year'])?paperInfo['year']:paperInfo['date']
+		let msgText = 'Fetched ' + paperInfo['authors'].split(',').splice(0, 1) + ', ... ' + date;
 		this.setMessage(msgText, 1000);
 		this.updateStats();
 	}

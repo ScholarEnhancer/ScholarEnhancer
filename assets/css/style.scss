@@ -1,0 +1,37 @@
+---
+---
+@import "{{ site.theme }}";
+
+#downloads {
+    width: 542px;
+    height: 96px;
+}
+
+.chrome_download_link {
+    display: block;
+    float: right;
+    width: 312px;
+    height: 96px;
+    text-indent: -5000px;
+    overflow: hidden;
+    background: url(../images/crff_sprite_download.png) no-repeat bottom left;
+}
+
+.firefox_download_link {
+    display: block;
+    float: right;
+    width: 200px;
+    height: 96px;
+    text-indent: -5000px;
+    overflow: hidden;
+    background: url(../images/crff_sprite_download.png) no-repeat bottom right;
+    margin-left: 10px;
+}
+
+.chrome_download_link:hover {
+    background: url(../images/crff_sprite_download.png) no-repeat top left;
+}
+
+.firefox_download_link:hover {
+    background: url(../images/crff_sprite_download.png) no-repeat top right;
+}

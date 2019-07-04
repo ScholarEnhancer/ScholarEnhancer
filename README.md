@@ -1,3 +1,5 @@
+![Image](/chrome/icons/icon256.png)
+
 Scholar Enhancer is a Chorme/Firefox extension that enhances your Google Scholar experience. 
 
 It adds some features that may make you happier:

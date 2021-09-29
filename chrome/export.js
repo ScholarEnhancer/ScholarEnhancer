@@ -44,6 +44,12 @@ class ScholarEnhancer {
 		this.showMoreInterval = null;
 		this.detailPageWaitInterval = null;
 
+		// Temp iframe
+		this.iframe = document.createElement('iframe');
+		this.iframe.style.width = '100%';
+		this.iframe.style.display = 'none';
+		this.iframe.src = 'about:blank';
+		document.body.appendChild(this.iframe);
 
 		this.createUI();
 	}
@@ -268,7 +274,7 @@ class ScholarEnhancer {
 		return new Promise((resolve, reject) => {
 			if (this.detailPageWaitInterval) clearInterval(this.detailPageWaitInterval);
 			this.detailPageWaitInterval = setInterval( () => {
-				let isOpen = (this.getTitleElemInDetailsPage()) && document.querySelectorAll('.gs_md_wnw.gs_md_wmw.gs_vis').length > 0;
+				let isOpen = (this.getTitleElemInDetailsPage(document)) && document.querySelectorAll('.gs_md_wnw.gs_md_wmw.gs_vis').length > 0;
 				if (isOpen === forOpen) {
 					clearInterval(this.detailPageWaitInterval);
 					return resolve(isOpen);
@@ -276,12 +282,22 @@ class ScholarEnhancer {
 			}, this.detailsWaitInterval);
 		});
 	}
+	
+	async loadPageViaIFrame(url){
+		this.iframe.src = url;
+		// Wait for iframe to load
+		return new Promise(resolve => {
+			this.iframe.onload = () => {
+				resolve();
+			};
+		});
+	}
 
-	getTitleElemInDetailsPage(e){
-		if (document.querySelector('.gsc_vcd_title_link')) {
-			return document.querySelector('.gsc_vcd_title_link'); // Has link
+	getTitleElemInDetailsPage(doc){
+		if (doc.querySelector('.gsc_oci_title_link')) {
+			return doc.querySelector('.gsc_oci_title_link'); // Has link
 		} else {
-			return document.querySelector('#gsc_vcd_title'); // No link
+			return doc.querySelector('#gsc_oci_title'); // No link
 		}
 	}
 
@@ -334,21 +350,22 @@ class ScholarEnhancer {
 		return data;
 	}
 
-	extractInfoFromDetailsPage(){
+	extractInfoFromDetailsPage(doc){
+		const detailRows = doc.querySelectorAll('#gsc_oci_table .gs_scl');
 		const data = {
-			"title": this.getTitleElemInDetailsPage().innerText,
-			"authors": document.getElementsByClassName('gs_scl')[0].children[1].innerText,
-			"date": document.getElementsByClassName('gs_scl')[1].children[1].innerText
+			"title": this.getTitleElemInDetailsPage(doc).innerText,
+			"authors": detailRows[0].children[1].innerText,
+			"date": detailRows[1].children[1].innerText
 		};
-		let ThirdRowName  = document.getElementsByClassName('gs_scl')[2].children[0].innerText;
+		let ThirdRowName  = detailRows[2].children[0].innerText;
 		if (ThirdRowName.toLowerCase().indexOf('journal')||ThirdRowName.toLowerCase().indexOf('conference')){
-			let ThirdRowValue = document.getElementsByClassName('gs_scl')[2].children[1].innerText;
+			let ThirdRowValue = detailRows[2].children[1].innerText;
 			data['type'] = ThirdRowName;
 			data['publication'] = ThirdRowValue;
 		}
-		const urlElem = document.getElementsByClassName('gsc_vcd_title_link');
+		const urlElem = doc.getElementsByClassName('gsc_oci_title_link');
 		if (urlElem.length > 0) { data["url"] = urlElem[0].href; }
-		const detailRows = document.querySelectorAll('#gsc_vcd_table .gs_scl');
+		
 		Array.from(detailRows).forEach( rowElem => {
 			const name = rowElem.children[0].innerText.toLowerCase();
 			if ((name === 'volume') || (name === 'issue') || (name === 'pages') || (name === 'publisher') || (name === 'description')){
@@ -375,13 +392,12 @@ class ScholarEnhancer {
 		const needToGetDetails = (this.getDetailsFor === 'all') || (this.getDetailsFor === 'missing' && data['missingInfo']);
 		// If needed, click to get more details
 		if (needToGetDetails) {
-			titleElem.click();
-			console.log('Clicked on "' + titleElem.innerText.slice(0, 20) + '..."');
-			await this.waitForDetailsPage(true); // Wait for opening
-			data = this.extractInfoFromDetailsPage();
-			const closeBtn = document.getElementById('gs_md_cita-d-x');
-			closeBtn.click();
-			await this.waitForDetailsPage(false); // Wait for closure
+			this.iframe.style.display = 'block';
+			const detailsPageURL = titleElem.href;
+			await this.loadPageViaIFrame(detailsPageURL);
+			console.log('Loading in an iframe the details page for "' + titleElem.innerText.slice(0, 20) + '..."');
+			data = this.extractInfoFromDetailsPage(this.iframe.contentDocument);
+			this.iframe.style.display = 'none';
 		}
 		return data;
 	}

@@ -1,4 +1,4 @@
-![Image](/chrome/icons/icon256.png)
+![Image](./chrome/icons/icon256.png)
 
 Scholar Enhancer is a Chrome/Firefox extension that enhances your Google Scholar experience. 
 
@@ -11,5 +11,7 @@ Get it from [Chrome Webstore](https://chrome.google.com/webstore/detail/scholare
 
 Please report any issues on [GitHub](https://github.com/ScholarEnhancer/ScholarEnhancer).
 Also, feel free to contribute code to enhance the enhancer! ;)
+
+Change log: [./chrome/ChangeLog.md](./chrome/ChangeLog.md)
 
 Disclaimer: This extension is _not_ a Google product.

@@ -1,0 +1,2 @@
+- v0.0.9:
+    - Updates extraction of publication details to support the new behavior that loads details in a new page.

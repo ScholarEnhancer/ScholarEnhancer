@@ -1,2 +1,4 @@
+- v0.1.0:
+    - Updated to Manifest V3 for Chrome.
 - v0.0.9:
     - Updates extraction of publication details to support the new behavior that loads details in a new page.
